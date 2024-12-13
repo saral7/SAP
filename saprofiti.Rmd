@@ -1,0 +1,330 @@
+---
+title: "Statistička analiza podataka - Projekt Analiza čimbenika rizika za srčane bolesti"
+author: "Saprofiti"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(tidyr)
+library(readr)
+
+```
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+#Učitavanje podataka
+
+```{r}
+data <- read_csv("heart.csv")
+```
+
+
+###Deskriptivna statistika
+
+
+#Prikaz prvih 6 redova
+
+```{r}
+head(data)
+```
+#Opis značajki
+AGE -> Age of the patient [years]
+Sex -> Sex of the patient [M: Male, F: Female]
+ChestPainType -> hest pain type [TA: Typical Angina, ATA: Atypical Angina, NAP: Non-Anginal Pain, ASY: Asymptomatic]
+RestingBP -> Resting blood pressure [mm Hg]
+Cholesterol -> Serum cholesterol [mm/dl]
+FastingBS -> Fasting blood sugar [1: if Fasting blood sugar > 120 mg/dl, 0: otherwise]
+RestingECG -> Resting electrocardiogram results [Normal: Normal, ST: having ST-T wave abnormality (T wave inversions and/or ST elevation or depression of > 0.05 mV), LVH: showing probable or definite left ventricular hypertrophy by Estes’ criteria]
+MaxHR -> Maximum heart rate achieved [Numeric value between 60 and 202]
+ExerciseAngina -> Exercise-induced angina [Y: Yes, N: No]
+Oldpeak -> Exercise-induced ST depression [ST depression induced by exercise relative to rest]
+ST_Slope -> Slope of the peak exercise ST segment [Up: upsloping, Flat: flat, Down: downsloping]
+HeartDisease -> Output class [1: heart disease, 0: Normal]
+
+
+#Opis značajki
+```{r}
+dim(data)  # broj redaka, broj stupaca (broj primjera, broj varijabli) 
+cat("Number of rows: ", nrow(data), "\n")
+cat("Number of columns: ", ncol(data), "\n")
+cat("Column names:", paste(colnames(data), collapse = ", "), "\n")
+
+
+```
+#Ciscenje podataka
+
+
+#Tražimo monotone i konstantne vrijednosti
+```{r}
+cat("Number of rows is ", nrow(data), "\n")
+for (collumn in colnames(data)){
+  cat("Column: ", collumn, "has ", length(unique(data[[collumn]])), " unique values\n")
+}
+
+```
+Pošto je broj jedinstvenih vrijednosti za svaku značajku manji od broja redaka, možemo zaključiti da nema monotone vrijednosti (napomena provjerili smo i ručno kako se ne bi desilo da zbog nedostajućih vrijednosti izgleda kao da nema monotonih vrijednosti)
+Također, vidimo da nema niti konstantnih vrijednosti jer je broj jedinstvenih vrijednosti za svaku značajku veći od 1
+
+
+#Tražimo nedostajuće vrijednosti
+```{r}
+data %>% is.na() %>% colSums()
+```
+Nema nedostajućih vrijednosti, pa preskačemo korak zamjene nedostajućih vrijednosti
+
+
+#Transformiranje kategoričkih značajki u numeričke
+Mogli smo koristiti i one hot encoding za neke značajke no smatramo da ipak između svih značajki postoji neko uređenje te smo se zato odlučili za faktorizaciju
+npr. za značajku ChestPainType može biti TA -> ATA -> NAP -> ASY gdje određeni simptomi postaju manje karakteristični za anginu
+slope također ima uređenje up flat down
+
+
+
+```{r}
+cat(unique(data$Sex), "\n")
+oldCategoricalData <- data
+data$Sex <- as.numeric(factor(data$Sex, levels = c("F", "M"), labels = c(0, 1))) - 1
+data$ExerciseAngina <- as.numeric(factor(data$ExerciseAngina, levels = c("N", "Y"), labels = c(0, 1))) - 1
+data$ChestPainType <- as.numeric(factor(data$ChestPainType, levels = c("TA", "ATA", "NAP", "ASY"), labels = c(0, 1, 2, 3)))
+data$RestingECG <- as.numeric(factor(data$RestingECG, levels = c("Normal", "ST", "LVH"), labels = c(0, 1, 2)))
+data$ST_Slope <- as.numeric(factor(data$ST_Slope, levels = c("Up", "Flat", "Down"), labels = c(0, 1, 2)))
+
+
+
+```
+
+
+
+
+#Nastavak deskriptivne statistike
+Sada kada smo očistili podatke, možemo nastaviti s deskriptivnom statistikom, prvo ćemo izvuci osnovne statistike za podatke kao što su min, max, kvantili i srednja vrijednost za numeričke podatke i učestalost pojavljivanja po kategorijama za kategoričke. 
+
+```{r}
+data[-c(2,3,6,7,9,11,12)] %>% summary()
+```
+
+
+
+
+```{r}
+# Sada ćemo ispisati i ucestalost poajvljivanja vrijednosti za kategoričke značajke
+for (column in c(2, 3, 6, 7, 9, 11, 12)) {
+  column_name <- colnames(oldCategoricalData)[column]
+  column_values <- oldCategoricalData[[column]]
+  cat("Column:", column_name, "has values:\n")
+  print(table(column_values))
+  cat("\n")
+}
+
+
+
+
+
+```
+
+#Normalzacija numeričkih značajki
+```{r}
+unNormalizedData <- data
+data[-c(2,3,6,7,9,11,12)] <- scale(data[-c(2,3,6,7,9,11,12)])
+```
+
+
+###Istraživačkak pitanja
+VAŽNA NAPOMENA: Alfa vrijednost se određuje prije provođenja statističkog testa i mi ćemo u svim testovima uzeti da je alfa = 0.05 odnosno 5%
+
+##Prvo istraživačko pitanje
+#Postoji li razlika u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine?
+Kako bismo odgovorili na ovo pitanje trebamo koristiti T test za dva uzorka.
+Znamo da T test ima neke osnovne pretpostavke koje moramo provjeriti, također ne znamo jesu li varijance podataka jednake ili različite
+Prvo ćemo pogledati jesu li podatci uzeti iz normalne razdiobe, a nakon toga ćemo provesti F test kako bi utvrdili jesu li varijance jednake ili različite
+
+```{r}
+withAngine <- data[data$ExerciseAngina == 1,]
+withoutAngine <- data[data$ExerciseAngina == 0,]
+maxHRWithAngine <- withAngine$MaxHR
+maxHRWithoutAngine <- withoutAngine$MaxHR
+
+# prvo crtamo qq plot da vidimo jeli podatci odgovaraju normalnoj raspodjeli
+qqnorm(maxHRWithAngine, main = "QQ plot for max HR with angine")
+qqline(maxHRWithAngine)
+
+qqnorm(maxHRWithoutAngine , main = "QQ plot for max HR without angine")
+qqline(maxHRWithoutAngine)
+
+
+# osim qq plota mozemo koristiti i histograme
+hist(maxHRWithAngine, main = "Histogram for max HR with angine")
+
+hist(maxHRWithoutAngine, main = "Histogram for max HR without angine")
+
+```
+
+
+Iz grafova možemo zaključiti da se za osobe s anginom max HR ravna po normalnoj razdiobi dok za osobe bez angine se sredina ravna po normalnoj raspodjeli no repovi su različiti od normalne raspodjele, dodatno histogram za osobe bez angine pokazuje da su podatci i malo pomaknuti od sredine 0. Možemo provesti Lilliefors test kako bi provjerili ponašaju li se podatci kao normalna razdioba. No pošto je T razdioba robusna na normalnost podataka, možemo nastaviti s testiranjem razlike u srednjim vrijednostima. Nezavisnost podataka možemo pretpostaviti jer su podatci uzeti iz različitih skupina odnosno različitih ljudi.
+
+```{r}
+library(nortest)
+lillie.test(maxHRWithoutAngine)
+lillie.test(maxHRWithAngine)
+
+#ode mi pokazuje da nista nije po nomralnoj raspodjeli pa nez sta tu napravit
+
+
+
+```
+Nakon što smo utvrdili normalnost nastavljamo s F testom kako bi utvrdili jesu li varijance jednake ili različite
+
+```{r}
+var(maxHRWithoutAngine)
+var(maxHRWithAngine)
+var.test(maxHRWithAngine, maxHRWithoutAngine)
+
+```
+Vidimo da je p vrijednost značajno manja od alfa = 5% pa zaključujemo da su varijance različite, zbog toga moramo koristiti T test za dva uzorka s različitim varijancama.
+
+```{r}
+t.test(maxHRWithAngine, maxHRWithoutAngine, var.equal = FALSE)
+
+```
+Iz rezultata vidimo da je p vrijednost značajno manja od alfa = 5% pa zaključujemo da postoji razlika u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine
+
+##Drugo istraživačko pitanje
+#Možemo li predvidjeti prisutnost srčane bolesti na temelju maksimalnog broja otkucaja srca i starosti?
+
+Za rješavanje trećeg pitanja koristimo logističku regresiju. Linearna regresija nije dobar izbor jer je problem klasifikacije, a ne regresije.
+Linearna regresija loše radi na problemu klasifikacije jer funkcija pogreške kažnjava i točno klasificirane primjere koji su daleko od granice odluke te zbog toga outlieri mogu dosta pomicati granicu odluke(čak i kada su točno klasificirani).
+
+Za logističku regresiju trebamo provjeriti nekoliko pretpostavki:
+1. Ne smije biti multikolinearnost
+2. Podatci moraju biti nezavisni (ulazi su nezavisne varijable dok je izlaz y zavisna varijabla)
+3. nema nedostajućih vrijednosti i klase moraju biti balansirane (u našem slučaju oba uvjeta su ispunjena, provjera je napravljena u fazi čišćenja podataka)
+** provjeri ako ima još pretpostavki kod logističke regresije
+
+
+Prije same regresije poželjno je vizualizirati podatke kako bi dobili bolji uvid u njih. U našem slučaju možemo koristiti scatter plot jer imamo samo dvije varijable
+```{r}
+colors <- ifelse(oldCategoricalData$HeartDisease == 1, rgb(1,0,0,0.5), rgb(0,0,1,0.5)) 
+plot(oldCategoricalData$Age, oldCategoricalData$MaxHR, col = colors, main = "Scatter plot for Age and MaxHR", xlab = "Age", ylab = "MaxHR", pch = 19)
+legend("topright", legend = c("Heart Disease", "No Heart Disease"), fill = c("red", "blue"))
+
+
+
+
+
+```
+Iz grafa možemo očitati da su srčane bolesti rjeđe kod mlađih ljudi koji imaju veći maksimalni broj otkucaja srca.
+Dok stariji ljudi s manjim maksimalnim brojem otkucaja srca češće imaju srčane bolesti.
+
+
+
+Prije same logističke regresije trebamo provjeriti pretpostavke
+Krenimo prvo s provjerom multikolinearnosti, to možemo napraviti funkcijom corrplot koja nam crta matricu korelacije između varijabli. U našem slučaju su samo dvije varijable pa možemo koristiti i funkciju cor koja daje korelaciju između varijabli
+
+```{r}
+library(ggcorrplot)
+
+predictor <- data.frame(data$Age, data$MaxHR)
+cor(predictor)
+#ggcorrplot(cor(predictor), hc.order = TRUE, type = "lower", lab = TRUE)
+```
+Dobili smo korelaciju od -0.38 što je umjereno negativna korelacija pa možemo nastaviti s logističkom regresijom
+
+
+```{r}
+logisticModel <- glm(HeartDisease ~ MaxHR + Age, data = data, family = binomial)
+summary(logisticModel)
+
+
+
+```
+Nakon što smo proveli logističku regresiju možemo analizirati podatke
+Vidimo da je koeficijent MaxHR -0.83 što sugerira da s povećanjem maksimalnog broja otkucaja srca smanjuje se vjerojatnost srčane bolesti.
+Koeficijent uz Age je 0.3566 što sugerira da starije osobe imaju veću vjerojatnost srčane bolesti.
+Dobiveni rezultati se slažu s vizualizacijom podataka koju smo napravili ranije.
+P-vrijednosti su male 2 * 10^-16 za MaxHR i 8.55 * 10^-6 za Age iz čega možemo zaključiti da su oba koeficijenta imaju statistički značajan utjecaj.
+
+
+```{r}
+library(pROC)
+# Predikcije
+predictions <- predict(logisticModel, type = "response")
+# ROC krivulja
+roc_curve <- roc(data$HeartDisease, predictions)
+plot(roc_curve, main = "ROC Curve")
+# AUC vrijednost
+auc(roc_curve)
+```
+Area under the curve predstavlja površinu ispod ROC krivulje. Znamo da je ROC krivulja samo pravac pod kutem od 45 stupnjeva ako je predikcija potpuno slučajna. Što je veća površina ispod grafa bolja je sposobnost predikcije. Idealno je auc jednak 1. Za naš slučaj auc je 0.7467 iz čega zaključujemo da model ima dobru sposobnost predikcije. I dalje ima mjesta za napredak tako možemo na primjer dodati još značajki ali ovaj model odgovara na drugo istraživačko pitanje.
+Može se predvidjeti prisutnost srčane bolesti na temelju maksimalnog broja otkucaja srca i starosti, ali model neće imati savršenu točnost što je i očekivano. Dodavanjem dobrih značajki možemo poboljšati model.
+
+
+
+
+##Četvrto istraživačko pitanje
+#Postoji li razlika u maksimalnom broju otkucaja srca između muškaraca i žena?
+
+Kao i u prvom istraživačkom pitanju koristimo T test za dva uzorka.
+Opet ćemo prvo provjeriti normalnost podataka i nakon toga var pomoću F testa.
+Opet pretpostavljamo nezavisnost podataka jer su podatci uzeti iz različitih skupina.
+
+```{r}
+#prvo crtamo qq plot da vidimo jeli podatci odgovaraju normalnoj raspodjeli
+male <- data[data$Sex == 1,]
+female <- data[data$Sex == 0,]
+
+maxHRMale <- male$MaxHR
+maxHRFemale <- female$MaxHR
+
+qqnorm(maxHRMale, main = "QQ plot for males")
+qqline(maxHRMale)
+
+qqnorm(maxHRFemale , main = "QQ plot for females")
+qqline(maxHRFemale)
+
+# možemo nacrtati i histograme
+
+hist(maxHRMale, main = "Histogram for males")
+
+hist(maxHRFemale, main = "Histogram for females")
+
+```
+Vidimo da se podatci ne ravnaju savršeno po normalnoj razdiobi zbog rubova ali sličnost je dovoljno velika i uz pretpostavku normalnosti možemo nastaviti s koracima. (Mala odstupanja od normalne razdiobe neće utjecati na rezultate jer je T test robustan na normalnost podataka)
+
+Nakon što smo utvrdili nezavisnost podataka i normalnost podataka, provodimo F test kako bi utvrdili jesu li varijance jednake ili različite
+
+```{r}
+var(maxHRMale)
+var(maxHRFemale)
+
+var.test(maxHRMale, maxHRFemale)
+```
+Opet vidimo da je p vrijednost značajno manja od alfa = 5% pa zaključujemo da su varijance različite. Sada znamo da trebamo koristiti T test za dva uzorka s različitim varijancama
+
+```{r}
+t.test(maxHRMale, maxHRFemale, var.equal = FALSE)
+  
+```
+Iz rezultata vidimo da je p vrijednost značajno manja od alfa = 5% pa zaključujemo da postoji razlika u maksimalnom broju otkucaja srca između muškaraca i žena.
+
+
+
+
+
+
+
