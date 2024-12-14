@@ -1,8 +1,12 @@
 ---
-title: "Statistička analiza podataka - Projekt Analiza čimbenika rizika za srčane bolesti"
+title: "Statistička analiza podataka - Projekt Analiza čimbenika rizika za srčane
+  bolesti"
 author: "Saprofiti"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -323,8 +327,81 @@ t.test(maxHRMale, maxHRFemale, var.equal = FALSE)
 Iz rezultata vidimo da je p vrijednost značajno manja od alfa = 5% pa zaključujemo da postoji razlika u maksimalnom broju otkucaja srca između muškaraca i žena.
 
 
+##Peto istraživačko pitanje
+# Postoje li korelacije ili homogenosti među kateogrijskim čimbenicima
+
+```{r}
+data_copy = data.frame(data);
+tracemem(data)==tracemem(data_copy);
+untracemem(data_copy);
+untracemem(data_copy);
+
+```
+```{r}
+tbl_angina = table(data_copy$Sex)
+print(tbl_angina)
+```
+```{r}
+tbl_angina = table(data_copy$Sex, 
+            data_copy$ExerciseAngina)
+tbl_angina
+```
+```{r}
+added_margins_tbl_angina = addmargins(tbl_angina)
+print(added_margins_tbl_angina)
+```
+
+
+```{r}
+for (col_names in colnames(added_margins_tbl_angina)){
+  for (row_names in rownames(added_margins_tbl_angina)){
+    if (!(row_names == 'Sum' | col_names == 'Sum') ){
+      cat('Očekivane frekvencije za razred ',col_names,'-',row_names,': ',(added_margins_tbl_angina[row_names,'Sum'] * added_margins_tbl_angina['Sum',col_names]) / added_margins_tbl_angina['Sum','Sum'],'\n')
+    }
+  }
+}
+```
+
+```{r}
+chisq.test(tbl_angina, correct=F)
+```
 
 
 
 
 
+```{r}
+data_copy = data.frame(data);
+tracemem(data)==tracemem(data_copy);
+untracemem(data_copy);
+untracemem(data_copy);
+
+```
+```{r}
+tbl_heart_disease = table(data_copy$Sex)
+print(tbl_heart_disease)
+```
+```{r}
+tbl_heart_disease = table(data_copy$Sex, 
+            data_copy$HeartDisease)
+tbl_heart_disease
+```
+```{r}
+added_margins_tbl_heart_disease = addmargins(tbl_heart_disease)
+print(added_margins_tbl_heart_disease)
+```
+
+
+```{r}
+for (col_names in colnames(added_margins_tbl_heart_disease)){
+  for (row_names in rownames(added_margins_tbl_heart_disease)){
+    if (!(row_names == 'Sum' | col_names == 'Sum') ){
+      cat('Očekivane frekvencije za razred ',col_names,'-',row_names,': ',(added_margins_tbl_heart_disease[row_names,'Sum'] * added_margins_tbl_heart_disease['Sum',col_names]) / added_margins_tbl_heart_disease['Sum','Sum'],'\n')
+    }
+  }
+}
+```
+
+```{r}
+chisq.test(tbl_heart_disease, correct=F)
+```
