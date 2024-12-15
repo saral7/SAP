@@ -328,14 +328,12 @@ Iz rezultata vidimo da je p vrijednost značajno manja od alfa = 5% pa zaključu
 
 
 ##Peto istraživačko pitanje
-# Postoje li korelacije ili homogenosti među kateogrijskim čimbenicima
+# Postoje li korelacije ili homogenosti između spola i kateogrijskih čimbenika
 
 ```{r}
 data_copy = data.frame(data);
 tracemem(data)==tracemem(data_copy);
 untracemem(data_copy);
-untracemem(data_copy);
-
 ```
 ```{r}
 tbl_angina = table(data_copy$Sex)
@@ -365,7 +363,7 @@ for (col_names in colnames(added_margins_tbl_angina)){
 ```{r}
 chisq.test(tbl_angina, correct=F)
 ```
-
+Vidimo da je p vrijednost jako mala što znači da odbacujemo hipotezu H0 u korist hipoteze H1 koja glasi da postoji zavisnost između podataka. Tj. da pojava angine izazvane vježbanjem ovisi o spolu.
 
 
 
@@ -373,7 +371,6 @@ chisq.test(tbl_angina, correct=F)
 ```{r}
 data_copy = data.frame(data);
 tracemem(data)==tracemem(data_copy);
-untracemem(data_copy);
 untracemem(data_copy);
 
 ```
@@ -405,3 +402,46 @@ for (col_names in colnames(added_margins_tbl_heart_disease)){
 ```{r}
 chisq.test(tbl_heart_disease, correct=F)
 ```
+Vidimo da je p-vrijednost jako mala što znači da odbacujemo hipotezu H0 u korist H1 koja tvrdi da postoji zavisnost između pojave srčanih bolesti i spola.
+
+
+
+```{r}
+data_copy = data.frame(data);
+tracemem(data)==tracemem(data_copy);
+untracemem(data_copy);
+
+```
+
+```{r}
+tbl_pain_type = table(data_copy$Sex)
+print(tbl_pain_type)
+```
+
+```{r}
+tbl_pain_type = table(data_copy$Sex, 
+            data_copy$ChestPainType)
+tbl_pain_type
+```
+
+```{r}
+added_margins_tbl_pain_type = addmargins(tbl_pain_type)
+print(added_margins_tbl_pain_type)
+```
+
+
+```{r}
+for (col_names in colnames(added_margins_tbl_pain_type)){
+  for (row_names in rownames(added_margins_tbl_pain_type)){
+    if (!(row_names == 'Sum' | col_names == 'Sum') ){
+      cat('Očekivane frekvencije za razred ',col_names,'-',row_names,': ',(added_margins_tbl_pain_type[row_names,'Sum'] * added_margins_tbl_pain_type['Sum',col_names]) / added_margins_tbl_pain_type['Sum','Sum'],'\n')
+    }
+  }
+}
+```
+
+```{r}
+chisq.test(tbl_pain_type, correct=F)
+```
+
+Ponovno vidimo da je p vrijednost jako mala što znači da odbijamo hipotezu H0 u korist H1 koja tvrdi da postoji povezanost između tipa boli i spola.
