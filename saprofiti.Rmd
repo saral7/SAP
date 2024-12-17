@@ -1,8 +1,11 @@
 ---
-title: "Statistička analiza podataka - Projekt Analiza čimbenika rizika za srčane bolesti"
+title: "Statistička analiza podataka - Projekt Analiza čimbenika rizika za srčane
+  bolesti"
 author: "Saprofiti"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -130,6 +133,8 @@ library(tidyverse)
 data %>% group_by(Sex) %>% summarise(
   NumOfPatients = n(),
   HeartDiseaseRatio = sum(HeartDisease)/n(),
+  FastingBSRatio = sum(FastingBS)/n(),
+  ExerciseAnginaRatio = sum(ExerciseAngina)/n(),
   Mean.Age = mean(Age),
   Med.Age = median(Age),
   Mean.RestingBP = mean(RestingBP),
@@ -146,10 +151,10 @@ data %>% group_by(Sex) %>% summarise(
   Med.OldPeak = median(Oldpeak)
 ) 
 ```
-Na prvu uočavamo razlike između srednjih vrijednosti (a i medijana) najvećeg broja otkucaja srca (MaxHR) i količine kolesterola (Cholesterol) u muškaraca i žena, te, možda najvažnije, razliku u udjelu srčanih bolesnika među muškarcima i ženama.
-To bi moglo motivirati pitanja o utjecaju spola na vrijdnosti tih parametara.
+Na prvu uočavamo razlike između srednjih vrijednosti (a i medijana) najvećeg broja otkucaja srca (MaxHR) i količine kolesterola (Cholesterol), razliku u udjelu onih s visokim šećerom i vježbom induciranom anginom u muškaraca i žena, te, možda najvažnije, razliku u udjelu srčanih bolesnika među muškarcima i ženama.
+To bi moglo motivirati pitanja o utjecaju spola na vrijednosti tih parametara.
 
-Možemo analizirati boxplotovima.
+Možemo prvo analizirati boxplotovima.
 
 ```{r}
 boxplot(Cholesterol ~ Sex, data = data)
@@ -176,6 +181,8 @@ dataWithAgeCategory <- helperData %>% mutate(ageCategory = cut(data$Age,
 dataWithAgeCategory %>% group_by(ageCategory) %>% summarise(
   NumOfPatients = n(),
   HeartDiseaseRatio = sum(HeartDisease)/n(),
+  FastingBSRatio = sum(FastingBS)/n(),
+  ExerciseAnginaRatio = sum(ExerciseAngina)/n(),
   Mean.Age = mean(Age),
   Med.Age = median(Age),
   Mean.RestingBP = mean(RestingBP),
@@ -194,40 +201,59 @@ dataWithAgeCategory %>% group_by(ageCategory) %>% summarise(
 
 ```
 
-Ovdje uočavamo da je udio srčanih bolesnika raste svakom dobnom kategorijom, kao i vrijednosti OldPeak, dok MaxHR i Cholesterol padaju. To bi moglo potaknuti pitanja o ovisnosti dobi i vrijednosti tih parametara.
+Ovdje uočavamo da je udio srčanih bolesnika, bolesnika s anginom i bolesnika s visokim sećerom raste svakom dobnom kategorijom, kao i vrijednosti OldPeak, dok MaxHR i Cholesterol padaju. To bi moglo potaknuti pitanja o ovisnosti dobi i vrijednosti tih parametara.
 
 ```{r}
-plot(data$Age, data$Cholesterol,
+{plot(data$Age, data$Cholesterol,
      col="blue",
      xlab='Age',
      ylab='Cholesterol Level')
+  abline(lm(data$Cholesterol ~ data$Age), col="red")}
 ```
 
+Iz ovog scatterplota vidimo gotovo nepostojeću korelaciju između dobi i razine kolesterola.
+
 ```{r}
-plot(data$Age, data$MaxHR,
+lowCholesterolCnt = nrow(data[data$Cholesterol < 120,])
+lowCholesterolCnt
+```
+
+
+```{r}
+x <- data$Age
+y <- data$MaxHR
+
+model = lm(y ~ x)
+{plot(x, y,
      col="blue",
      xlab='Age',
      ylab='MaxHR')
+abline(model, col = "red")}
 ```
 
+Ovaj scatterplot ukazuje na slabu negativnu korelaciju između vrijednosti parametara MaxHR i Age.
+
 ```{r}
-plot(data$Age, data$Oldpeak,
+{plot(data$Age, data$Oldpeak,
      col="blue",
      xlab='Age',
      ylab='OldPeak')
+
+abline(lm(data$Oldpeak ~ data$Age), col = "red")}
 ```
-Vidimo da se iz grafova najviše isplati postaviti pitanje o ovisnosti MaxHR o dobi (iako isto dosta nategnuto), jer ostale ovisnosti iz grafova izgledaju još više nekorelirano.
 
-// PITANJE: analizirati sršeće vrijednosti ovdje?
+Vidimo da se iz grafova najviše isplati postaviti pitanje o ovisnosti MaxHR o dobi (iako je ta korelacija također dosta blaga), jer ostale ovisnosti iz grafova izgledaju još više nekorelirano.
 
 
-## Analiza ovisno o imanju bolesti
+## Analiza ovisno o prisutnosti srčane bolesti
 
 ```{r}
 library(tidyverse)
 
 data %>% group_by(HeartDisease) %>% summarise(
   NumOfPatients = n(),
+  FastingBSRatio = sum(FastingBS)/n(),
+  ExerciseAnginaRatio = sum(ExerciseAngina)/n(),
   Mean.Age = mean(Age),
   Med.Age = median(Age),
   Mean.RestingBP = mean(RestingBP),
@@ -246,21 +272,72 @@ data %>% group_by(HeartDisease) %>% summarise(
 
 ```
 
-Ovdje sada konkretno vidimo izračunate mjere srednjih vrijednosti parametara za srčane bolesnike i one koji to nisu. Vidimo da se vrijednosti parametara Cholesterol, MaxHR i OldPeak razlikuju po grupama. To bi moglo motivirati pitanja može li se na temelju vrijednosti takvog parametra predvidjeti postojanje srčane bolesti.
+Ovdje sada konkretno vidimo izračunate mjere srednjih vrijednosti parametara za srčane bolesnike i one koji to nisu. Vidimo da se vrijednosti parametara Cholesterol, MaxHR i OldPeak razlikuju po grupama, kao i udio onih s povišenim šećerom i onih s vježbom induciranom anginom. To bi moglo motivirati pitanja može li se na temelju vrijednosti takvih parametara predvidjeti postojanje srčane bolesti.
 
-Najbolje je to analizirati boxplot dijagramima, paralelno za srčane bolesnike i zdrave pacijente.
+Najbolje je to prvo analizirati boxplot dijagramima, paralelno za srčane bolesnike i zdrave pacijente.
 
 ```{r}
 boxplot(Cholesterol ~ HeartDisease, data = data)
 
 ```
+S ovog boxplota vidimo se količine kolesterola više rasipaju u bolesnika te je desno zakrivljena, ali u pacijenata koji nisu srčani bolesnici ima mnogo stršećih vrijednosti pa je dobro promatrati medijane umjesto srednjih vrijednosti za ovaj primjer.
+
 ```{r}
 
 boxplot(MaxHR ~ HeartDisease, data = data)
 ```
+Ovaj bi boxplot mogao sugerirati na razliku u vrijednosti MaxHR parametra ovisno o tome je li pacijent srčani bolesnik ili ne - vidimo da za srčane bolesnike vrijedi da su vrijednosti MaxHR-a niže te da medijan bude manji te čak izvan vrijednosti prvog kvartila u skupini srčanih nebolesnika.
+
 ```{r}
 
 boxplot(Oldpeak ~ HeartDisease, data = data)
+```
+Slično prošlom primjeri, ovaj boxplot mogao sugerirati na razliku u vrijednosti Oldpeak parametra ovisno o tome je li pacijent srčani bolesnik ili ne - vidimo da za srčane bolesnike vrijedi da su vrijednosti Oldpeaka-a više te da medijan bude veći te čak izvan vrijednosti trećeg kvartila u skupini srčanih nebolesnika. Slično kao za kolesterol, za srčane bolesnike se vrijednost Oldpeaka manje rasipa (bude konzistentnije), ali ponovno imamo mnogo stršećih (atipičnih vrijednosti), zato je dobro promatrati medijane umjesto srednjih vrijednosti za ovaj primjer.
+
+
+```{r}
+boxplot(Age ~ HeartDisease, data = data)
+```
+Ponovno, ovaj boxplot mogao sugerirati na razliku u dobi pacijenata srčanih bolesnika i nebolesnika - vidimo da za srčane bolesnike vrijedi da su veće dobi te da medijan bude veći te čak izvan vrijednosti trećeg kvartila u skupini srčanih nebolesnika. 
+
+```{r}
+diseased <- data[data$HeartDisease == 1, ]
+healthy <- data[data$HeartDisease == 0, ]
+
+```
+```{r}
+
+hist(diseased$MaxHR)
+```
+```{r}
+hist(healthy$MaxHR)
+
+```
+
+
+## Analiza ovisno o razini šećera
+
+```{r}
+library(tidyverse)
+
+data %>% group_by(FastingBS) %>% summarise(
+  NumOfPatients = n(),
+  HeartDiseaseRatio = sum(HeartDisease)/n(),
+  Mean.Age = mean(Age),
+  Med.Age = median(Age),
+  Mean.RestingBP = mean(RestingBP),
+  Med.RestingBP = median(RestingBP),
+  StdDev.RestingBP = sd(RestingBP),
+  Mean.Cholesterol = mean(Cholesterol),
+  StdDev.Cholesterol = sd(Cholesterol),
+  Med.Cholesterol = median(Cholesterol),
+  Mean.MaxHR = mean(MaxHR),
+  StdDev.MaxHR = sd(MaxHR),
+  Med.MaxHR = median(MaxHR),
+  Mean.OldPeak = mean(Oldpeak),
+  StdDev.OldPeak = sd(Oldpeak),
+  Med.OldPeak = median(Oldpeak)
+) 
 ```
 
 
