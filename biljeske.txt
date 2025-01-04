@@ -1,0 +1,10 @@
+- jeli pretpostavka uređenja značajki ChestPainType (TA -> ATA -> NAP -> ASY), ST_Slope (up -> flat -> down) i RestingECG (Normal -> ST -> LVH) u redu ili treba koristiti one-hot encoding? --> probati oboje, usporediti rezultate
+- možemo li pretpostaviti normalnost distribucije podataka sudeći po Q-Q grafu i histogramu? --> da, ali treba navesti da koristimo tu pretpostavku, eventualno probati neke transformacije podataka
+- jeli ispravno koristiti logističku regresiju pri rješavanju 3. pitanja i jesmo li je ispravno proveli? --> pogledati kako je napravljeno u 3. auditornima pa napraviti isto
+- što napraviti s primjerima u kojima je razina kolesterola 0? izbaciti ih ili zamijeniti reprezentativnom vrijednosti iz skupa podataka? --> to drugo, napisati zašto smo se za to odlučili
+
+- cca 30 strana izvještaj
+- predaja petak prije termina obrane
+- do 10.1. pitati kompleksna pitanja
+- obrana traje sat vremena, 15-20 pitanja, cijelo gradivo predmeta + kod prisutan u izvještaju
+- vizualizaciju varijabli raditi tek prije provođenja testova, za ovo prije dovoljna deskriptivna statistika
