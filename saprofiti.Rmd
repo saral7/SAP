@@ -87,9 +87,9 @@ Nema nedostajućih vrijednosti, pa preskačemo korak zamjene nedostajućih vrije
 #
 ```{r}
 data$Cholesterol[data$Cholesterol == 0] <- mean(data$Cholesterol[data$Cholesterol != 0])
-data$Cholesterol
 ```
 
+Među podacima o kolesterolu postoje vrijednosti 0 koje predstavljaju nedsotatak tog podatka. Kako ove vrijednosti ne bi utjecale na ostatak testova vezanih uz kolesterol, njih smo odlučili zamijeniti srednjom vrijednošću ostatka kolesterola.
 
 
 # Transformiranje kategoričkih značajki u numeričke
@@ -549,37 +549,37 @@ Opet pretpostavljamo nezavisnost podataka jer su podatci uzeti iz različitih sk
 male <- data[data$Sex == 1,]
 female <- data[data$Sex == 0,]
 
-maxHRMale <- male$MaxHR
-maxHRFemale <- female$MaxHR
+cholesterolMale <- male$Cholesterol
+cholesterolFemale <- female$Cholesterol
 
-qqnorm(maxHRMale, main = "Q-Q plot for males")
-qqline(maxHRMale)
+qqnorm(cholesterolMale, main = "Q-Q plot for males")
+qqline(cholesterolMale)
 
-qqnorm(maxHRFemale , main = "Q-Q plot for females")
-qqline(maxHRFemale)
+qqnorm(cholesterolFemale , main = "Q-Q plot for females")
+qqline(cholesterolFemale)
 
 # histogrami
 
-hist(maxHRMale, main = "Histogram for males")
+hist(cholesterolMale, main = "Histogram for males")
 
-hist(maxHRFemale, main = "Histogram for females")
+hist(cholesterolFemale, main = "Histogram for females")
 ```
 Vidimo kako se podatci ne ravnaju savršeno po normalnoj razdiobi na repovima ali sličnost je dovoljno velika da bi mogli nastaviti s provođenjem testa (mala odstupanja od normalne razdiobe neće utjecati na rezultate zato što je T-test robusan na normalnost podataka).
 
 Nakon što smo utvrdili nezavisnost i normalnost podataka, provodimo F-test kako bismo utvrdili jesu li varijance jednake ili različite.
 
 ```{r}
-var(maxHRMale)
-var(maxHRFemale)
+var(cholesterolMale)
+var(cholesterolFemale)
 
-var.test(maxHRMale, maxHRFemale)
+var.test(cholesterolMale, cholesterolFemale)
 ```
 Opet vidimo kako je p-vrijednost manja od alfa = 5% pa zaključujemo da su varijance različite. Sada znamo da trebamo koristiti T-test za dva uzorka s različitim varijancama.
 
 ```{r}
-t.test(maxHRMale, maxHRFemale, var.equal = FALSE)
+t.test(cholesterolMale, cholesterolFemale, var.equal = FALSE)
 ```
-Iz rezultata vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaključujemo da postoji razlika u maksimalnom broju otkucaja srca između muškaraca i žena.
+Iz rezultata vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaključujemo da postoji razlika u razini kolesterola između muškaraca i žena.
 
 
 ## 5. pitanje
