@@ -84,6 +84,13 @@ data %>% is.na() %>% colSums()
 ```
 Nema nedostajućih vrijednosti, pa preskačemo korak zamjene nedostajućih vrijednosti
 
+#
+```{r}
+data$Cholesterol[data$Cholesterol == 0] <- mean(data$Cholesterol[data$Cholesterol != 0])
+```
+
+Među podacima o kolesterolu postoje vrijednosti 0 koje predstavljaju nedsotatak tog podatka. Kako ove vrijednosti ne bi utjecale na ostatak testova vezanih uz kolesterol, njih smo odlučili zamijeniti srednjom vrijednošću ostatka kolesterola.
+
 
 # Transformiranje kategoričkih značajki u numeričke
 Mogli smo koristiti i one-hot encoding za neke značajke, no smatramo da ipak između svih značajki postoji neko uređenje te smo se zato odlučili za label encoding (npr. za značajku ChestPainType može biti TA -> ATA -> NAP -> ASY gdje određeni simptomi postaju manje karakteristični za anginu; ST_Slope također ima uređenje up -> flat -> down)
@@ -391,6 +398,80 @@ Iz rezultata vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaklju�
 ## 2. pitanje
 # Postoji li značajna razlika u starosti pacijenata s obzirom na različite vrste boli u prsima?
 
+Zadatak je ispitati srednju vrijednost dobi pacijenata ovisno o vrstama boli u prsima. Kako bismo dobili neku početnu intuiciju, radimo boxplot prikaz.
+
+```{r}
+boxplot(Age ~ ChestPainType, data = unNormalizedData)
+```
+Računamo uzoračku sredinu i varijancu pojedinih grupa. Vidimo da se sredine gotovo ne razlikuju, odskače eventualno sredina grupe 2. 
+
+
+```{r}
+library(tidyverse)
+
+unNormalizedData %>% group_by(ChestPainType) %>% summarise(
+  NumOfPatients = n(),
+  Mean.Age = mean(Age),
+  Med.Age = median(Age),
+  Std.Age = sd(Age),
+  Var.Age = var(Age)
+) 
+
+
+```
+
+Test kojim bi ispitali jednakost ovih sredina jest ANOVA (analiza varijanci).
+Pretpostavke tog testa su nezavisnost, normalnost populacija grupa, kao i jednakost njihovih varijanci.
+
+Kako bismo ispitali ovo treće, koristimo Bartlettov test. Nulta hipoteza tog testa jest da su varijance po svim grupama jednake, dok je alternativna hipoteza da za barem jedan par grupa vrijedi da to nije tako.
+
+```{r}
+bartlett.test(Age ~ ChestPainType, unNormalizedData)
+```
+Na razini značajnosti od 5% bismo odbacili nultu hipotezu, odnosno podaci sugeriraju da varijance po grupama nisu iste.
+
+Kako bismo ispitali normalnost podataka iz pojedinih grupa, vizualiziramo ih histogramima, Q-Q plotovima te naposlijetku radimo i Lillieforseovu inačicu Kolmogorov-Smirnovljevog testa. 
+
+```{r}
+agePainType1 <- unNormalizedData[unNormalizedData$ChestPainType == 1,]$Age
+agePainType2 <- unNormalizedData[unNormalizedData$ChestPainType == 2,]$Age
+agePainType3 <- unNormalizedData[unNormalizedData$ChestPainType == 3,]$Age
+agePainType4 <- unNormalizedData[unNormalizedData$ChestPainType == 4,]$Age
+
+{qqnorm(agePainType1, main = "Q-Q za tip boli 1")
+ qqline(agePainType1, col = "red")}
+{qqnorm(agePainType2, main = "Q-Q za tip boli 2")
+ qqline(agePainType2, col = "red")}
+{qqnorm(agePainType3, main = "Q-Q za tip boli 3")
+ qqline(agePainType3, col = "red")}
+{qqnorm(agePainType4, main = "Q-Q za tip boli 4")
+ qqline(agePainType4, col = "red")}
+
+hist(agePainType1, main = "Histogram of for pain type 1")
+hist(agePainType2, main = "Histogram of for pain type 2")
+hist(agePainType3, main = "Histogram of for pain type 3")
+hist(agePainType4, main = "Histogram of for pain type 4")
+
+library(nortest)
+lillie.test(agePainType1)
+lillie.test(agePainType2)
+lillie.test(agePainType3)
+lillie.test(agePainType4)
+
+
+```
+
+Vidimo da su p-vrijednosti Lillieforseove inačice sve osim za kategoriju 3 manje od 5%. Također ni grafovi ne sugeriraju normalnu razdiobu podataka.
+
+Puno nas toga odvraća od parametarskog ANOVA testa, pa se odlučujemo za provedbu njegove neparametarske alternative - Kruskal-Wallisova testa.
+Uvjet za primjenjivost Kruskal-Wallisovog testa jest da je veličina svakog uzorka (grupe) barem 5. što je kod nas slučaj.
+Nulta hipoteza je da su sve sredine po grupama jednake, a alternativna da za barem jedan par grupa to ne vrijedi.
+
+```{r}
+kruskal.test(Age ~ ChestPainType, data=data)
+```
+Vidimo da je p-vrijednost jako malena, što znači da odbacujemo nultu hipotezu, odnosno, podaci sugeriraju da postoji značajna razlika u starosti ovisno o tipu boli u prsima.
+
 
 ## 3. pitanje
 # Možemo li predvidjeti prisutnost srčane bolesti na temelju maksimalnog broja otkucaja srca i starosti?
@@ -468,83 +549,49 @@ Opet pretpostavljamo nezavisnost podataka jer su podatci uzeti iz različitih sk
 male <- data[data$Sex == 1,]
 female <- data[data$Sex == 0,]
 
-maxHRMale <- male$MaxHR
-maxHRFemale <- female$MaxHR
+cholesterolMale <- male$Cholesterol
+cholesterolFemale <- female$Cholesterol
 
-qqnorm(maxHRMale, main = "Q-Q plot for males")
-qqline(maxHRMale)
+qqnorm(cholesterolMale, main = "Q-Q plot for males")
+qqline(cholesterolMale)
 
-qqnorm(maxHRFemale , main = "Q-Q plot for females")
-qqline(maxHRFemale)
+qqnorm(cholesterolFemale , main = "Q-Q plot for females")
+qqline(cholesterolFemale)
 
 # histogrami
 
-hist(maxHRMale, main = "Histogram for males")
+hist(cholesterolMale, main = "Histogram for males")
 
-hist(maxHRFemale, main = "Histogram for females")
+hist(cholesterolFemale, main = "Histogram for females")
 ```
 Vidimo kako se podatci ne ravnaju savršeno po normalnoj razdiobi na repovima ali sličnost je dovoljno velika da bi mogli nastaviti s provođenjem testa (mala odstupanja od normalne razdiobe neće utjecati na rezultate zato što je T-test robusan na normalnost podataka).
 
 Nakon što smo utvrdili nezavisnost i normalnost podataka, provodimo F-test kako bismo utvrdili jesu li varijance jednake ili različite.
 
 ```{r}
-var(maxHRMale)
-var(maxHRFemale)
+var(cholesterolMale)
+var(cholesterolFemale)
 
-var.test(maxHRMale, maxHRFemale)
+var.test(cholesterolMale, cholesterolFemale)
 ```
 Opet vidimo kako je p-vrijednost manja od alfa = 5% pa zaključujemo da su varijance različite. Sada znamo da trebamo koristiti T-test za dva uzorka s različitim varijancama.
 
 ```{r}
-t.test(maxHRMale, maxHRFemale, var.equal = FALSE)
+t.test(cholesterolMale, cholesterolFemale, var.equal = FALSE)
 ```
-Iz rezultata vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaključujemo da postoji razlika u maksimalnom broju otkucaja srca između muškaraca i žena.
+Iz rezultata vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaključujemo da postoji razlika u razini kolesterola između muškaraca i žena.
 
 
 ## 5. pitanje
-# Postoji li korelacija ili homogenost između spola i kategorijskih čimbenika?
-
-```{r}
-data_copy = data.frame(data);
-tracemem(data)==tracemem(data_copy);
-untracemem(data_copy);
-```
-```{r}
-tbl_angina = table(data_copy$Sex)
-print(tbl_angina)
-```
-```{r}
-tbl_angina = table(data_copy$Sex, 
-            data_copy$ExerciseAngina)
-tbl_angina
-```
-```{r}
-added_margins_tbl_angina = addmargins(tbl_angina)
-print(added_margins_tbl_angina)
-```
-```{r}
-for (col_names in colnames(added_margins_tbl_angina)){
-  for (row_names in rownames(added_margins_tbl_angina)){
-    if (!(row_names == 'Sum' | col_names == 'Sum') ){
-      cat('Očekivane frekvencije za razred ',col_names,'-',row_names,': ',(added_margins_tbl_angina[row_names,'Sum'] * added_margins_tbl_angina['Sum',col_names]) / added_margins_tbl_angina['Sum','Sum'],'\n')
-    }
-  }
-}
-```
-```{r}
-chisq.test(tbl_angina, correct=F)
-```
-Vidimo da je p vrijednost jako mala što znači da odbacujemo hipotezu H0 u korist hipoteze H1 koja glasi da postoji zavisnost između podataka. Tj. da pojava angine izazvane vježbanjem ovisi o spolu.
+# Postoji li zavisnost između spola i pojave srčanih bolesti?
+H0: spol i pojava srčanih bolesti su nezavisni
+H1: postoji zavisnost spola i pojave srčanih bolesti
 
 ```{r}
 data_copy = data.frame(data);
 tracemem(data)==tracemem(data_copy);
 untracemem(data_copy);
 
-```
-```{r}
-tbl_heart_disease = table(data_copy$Sex)
-print(tbl_heart_disease)
 ```
 ```{r}
 tbl_heart_disease = table(data_copy$Sex, 
@@ -568,35 +615,3 @@ for (col_names in colnames(added_margins_tbl_heart_disease)){
 chisq.test(tbl_heart_disease, correct=F)
 ```
 Vidimo da je p-vrijednost jako mala što znači da odbacujemo hipotezu H0 u korist H1 koja tvrdi da postoji zavisnost između pojave srčanih bolesti i spola.
-
-```{r}
-data_copy = data.frame(data);
-tracemem(data)==tracemem(data_copy);
-untracemem(data_copy);
-```
-```{r}
-tbl_pain_type = table(data_copy$Sex)
-print(tbl_pain_type)
-```
-```{r}
-tbl_pain_type = table(data_copy$Sex, 
-            data_copy$ChestPainType)
-tbl_pain_type
-```
-```{r}
-added_margins_tbl_pain_type = addmargins(tbl_pain_type)
-print(added_margins_tbl_pain_type)
-```
-```{r}
-for (col_names in colnames(added_margins_tbl_pain_type)){
-  for (row_names in rownames(added_margins_tbl_pain_type)){
-    if (!(row_names == 'Sum' | col_names == 'Sum') ){
-      cat('Očekivane frekvencije za razred ',col_names,'-',row_names,': ',(added_margins_tbl_pain_type[row_names,'Sum'] * added_margins_tbl_pain_type['Sum',col_names]) / added_margins_tbl_pain_type['Sum','Sum'],'\n')
-    }
-  }
-}
-```
-```{r}
-chisq.test(tbl_pain_type, correct=F)
-```
-Ponovno vidimo da je p vrijednost jako mala što znači da odbijamo hipotezu H0 u korist H1 koja tvrdi da postoji povezanost između tipa boli i spola.
