@@ -1,8 +1,12 @@
 ---
-title: "Statistička analiza podataka - Projekt Analiza čimbenika rizika za srčane bolesti"
+title: "Statistička analiza podataka - Projekt Analiza čimbenika rizika za srčane
+  bolesti"
 author: "Saprofiti"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -43,7 +47,7 @@ head(data)
 ```
 # Opis značajki
 
-AGE -> Age of the patient [years]
+AGE -> Age of the patient [years] 
 Sex -> Sex of the patient [M: Male, F: Female]
 ChestPainType -> chest pain type [TA: Typical Angina, ATA: Atypical Angina, NAP: Non-Anginal Pain, ASY: Asymptomatic]
 RestingBP -> Resting blood pressure [mm Hg]
@@ -82,7 +86,8 @@ Također, vidimo da nema ni konstantnih vrijednosti jer je broj jedinstvenih vri
 ```{r}
 data %>% is.na() %>% colSums()
 ```
-Nema nedostajućih vrijednosti, pa preskačemo korak zamjene nedostajućih vrijednosti
+Nema nedostajućih vrijednosti, pa preskačemo korak zamjene nedostajućih vrijednosti.
+
 
 
 # Transformiranje kategoričkih značajki u numeričke
@@ -110,8 +115,20 @@ Prvo ćemo izvući osnovne statistike za podatke kao što su minimum, maksimum, 
 ```{r}
 data[-c(2,3,6,7,9,11,12)] %>% summary()
 ```
+Izradit ćemo kovarijacijsku matricu za numeričke varijable - vrijednosti prikazuju kovarijance varijable u retku i stupcu, a na dijagonali se nalaze varijance pojedinih varijabli.
 
+```{r}
+covMat <- cov(data[-c(2,3,6,7,9,11,12)])
+covMat
+```
+Izradit ćemo korelacijsku matricu za numeričke varijable - vrijednosti prikazuju koeficijente korelacije između pojedinih varijabli. To bi nam moglo biti zanimljivo za dobivanje nekog početnog dojma o međusobnim ovisnostima tih varijabli.
 
+```{r}
+
+corrMat <- cor(data[-c(2,3,6,7,9,11,12)])
+corrMat
+```
+Koeficijent korelacije je realan broj između -1 i 1, gdje veća apsolutna vrijednost prikazuje veću linearnu zavisnost. Iz tablice vidimo da varijable nisu toliko korelirane.
 
 
 ```{r}
@@ -137,104 +154,14 @@ data %>% group_by(Sex) %>% summarise(
   FastingBSRatio = sum(FastingBS)/n(),
   ExerciseAnginaRatio = sum(ExerciseAngina)/n(),
   Mean.Age = mean(Age),
-  Med.Age = median(Age),
   Mean.RestingBP = mean(RestingBP),
-  Med.RestingBP = median(RestingBP),
-  StdDev.RestingBP = sd(RestingBP),
   Mean.Cholesterol = mean(Cholesterol),
-  StdDev.Cholesterol = sd(Cholesterol),
-  Med.Cholesterol = median(Cholesterol),
   Mean.MaxHR = mean(MaxHR),
-  StdDev.MaxHR = sd(MaxHR),
-  Med.MaxHR = median(MaxHR),
-  Mean.OldPeak = mean(Oldpeak),
-  StdDev.OldPeak = sd(Oldpeak),
-  Med.OldPeak = median(Oldpeak)
 ) 
 ```
-Na prvu uočavamo razlike između srednjih vrijednosti (a i medijana) najvećeg broja otkucaja srca (MaxHR) i količine kolesterola (Cholesterol), razliku u udjelu onih s visokim šećerom i vježbom induciranom anginom u muškaraca i žena, te, možda najvažnije, razliku u udjelu srčanih bolesnika među muškarcima i ženama.
+Na prvu uočavamo razlike između srednjih vrijednosti najvećeg broja otkucaja srca (MaxHR) i količine kolesterola (Cholesterol), te, možda najvažnije, razliku u udjelu srčanih bolesnika među muškarcima i ženama.
 To bi moglo motivirati pitanja o utjecaju spola na vrijednosti tih parametara.
 
-Možemo prvo analizirati boxplotovima.
-
-```{r}
-boxplot(Cholesterol ~ Sex, data = data)
-```
-```{r}
-boxplot(MaxHR ~ Sex, data = data)
-```
-
-## Analiza podataka s obzirom na dob
-
-```{r}
-library(tidyverse)
-
-helperData <- data
-dataWithAgeCategory <- helperData %>% mutate(ageCategory = cut(data$Age,
-                      breaks = c(0, 30, 50, 70, 90, 120),  # Define the break points
-                      labels = c("Category-1", "Category-2", "Category-3", "Category-4", "Category-5"), 
-                      right = TRUE))
-
-
-dataWithAgeCategory %>% group_by(ageCategory) %>% summarise(
-  NumOfPatients = n(),
-  HeartDiseaseRatio = sum(HeartDisease)/n(),
-  FastingBSRatio = sum(FastingBS)/n(),
-  ExerciseAnginaRatio = sum(ExerciseAngina)/n(),
-  Mean.Age = mean(Age),
-  Med.Age = median(Age),
-  Mean.RestingBP = mean(RestingBP),
-  Med.RestingBP = median(RestingBP),
-  StdDev.RestingBP = sd(RestingBP),
-  Mean.Cholesterol = mean(Cholesterol),
-  StdDev.Cholesterol = sd(Cholesterol),
-  Med.Cholesterol = median(Cholesterol),
-  Mean.MaxHR = mean(MaxHR),
-  StdDev.MaxHR = sd(MaxHR),
-  Med.MaxHR = median(MaxHR),
-  Mean.OldPeak = mean(Oldpeak),
-  StdDev.OldPeak = sd(Oldpeak),
-  Med.OldPeak = median(Oldpeak)
-)
-```
-Ovdje uočavamo kako udio srčanih bolesnika, bolesnika s anginom i bolesnika s visokim šećerom raste svakom dobnom kategorijom, kao i vrijednosti OldPeak, dok MaxHR i Cholesterol padaju. To bi moglo potaknuti pitanja o ovisnosti dobi i vrijednosti tih parametara.
-
-```{r}
-{plot(data$Age, data$Cholesterol,
-     col="blue",
-     xlab='Age',
-     ylab='Cholesterol Level')
-  abline(lm(data$Cholesterol ~ data$Age), col="red")}
-```
-Iz ovog scatterplota vidimo gotovo nepostojeću korelaciju između dobi i razine kolesterola.
-
-```{r}
-lowCholesterolCnt = nrow(data[data$Cholesterol < 120,])
-lowCholesterolCnt
-```
-
-```{r}
-x <- data$Age
-y <- data$MaxHR
-
-model = lm(y ~ x)
-{plot(x, y,
-     col="blue",
-     xlab='Age',
-     ylab='MaxHR')
-abline(model, col = "red")}
-```
-Ovaj scatterplot ukazuje na slabu negativnu korelaciju između vrijednosti parametara MaxHR i Age.
-
-```{r}
-{plot(data$Age, data$Oldpeak,
-     col="blue",
-     xlab='Age',
-     ylab='OldPeak')
-
-abline(lm(data$Oldpeak ~ data$Age), col = "red")}
-```
-Grafovi ukazuju na to da nam se najviše isplati postaviti pitanje o ovisnosti MaxHR o dobi (iako je ta korelacija također dosta blaga), jer ostale ovisnosti iz grafova izgledaju još više nekorelirano.
 
 
 ## Analiza ovisno o prisutnosti srčane bolesti
@@ -247,22 +174,12 @@ data %>% group_by(HeartDisease) %>% summarise(
   FastingBSRatio = sum(FastingBS)/n(),
   ExerciseAnginaRatio = sum(ExerciseAngina)/n(),
   Mean.Age = mean(Age),
-  Med.Age = median(Age),
   Mean.RestingBP = mean(RestingBP),
-  Med.RestingBP = median(RestingBP),
-  StdDev.RestingBP = sd(RestingBP),
   Mean.Cholesterol = mean(Cholesterol),
-  StdDev.Cholesterol = sd(Cholesterol),
-  Med.Cholesterol = median(Cholesterol),
   Mean.MaxHR = mean(MaxHR),
-  StdDev.MaxHR = sd(MaxHR),
-  Med.MaxHR = median(MaxHR),
-  Mean.OldPeak = mean(Oldpeak),
-  StdDev.OldPeak = sd(Oldpeak),
-  Med.OldPeak = median(Oldpeak)
 )
 ```
-Ovdje konkretno vidimo izračunate mjere srednjih vrijednosti parametara za srčane bolesnike i one koji to nisu. Vidimo da se vrijednosti parametara Cholesterol, MaxHR i OldPeak razlikuju po grupama, kao i udio onih s povišenim šećerom i onih s vježbom induciranom anginom. To bi moglo motivirati pitanja može li se na temelju vrijednosti takvih parametara predvidjeti postojanje srčane bolesti.
+Ovdje konkretno vidimo izračunate mjere srednjih vrijednosti parametara za srčane bolesnike i one koji to nisu. Vidimo da se vrijednosti parametara Cholesterol i MaxHR razlikuju po grupama, kao i udio onih s povišenim šećerom i onih s vježbom induciranom anginom. To bi moglo motivirati pitanja može li se na temelju vrijednosti takvih parametara predvidjeti postojanje srčane bolesti.
 
 Najbolje je to prvo analizirati boxplot dijagramima, paralelno za srčane bolesnike i zdrave pacijente.
 
@@ -276,53 +193,13 @@ boxplot(MaxHR ~ HeartDisease, data = data)
 ```
 Ovaj bi boxplot mogao sugerirati na razliku u vrijednosti MaxHR parametra ovisno o tome je li pacijent srčani bolesnik ili ne - vidimo da za srčane bolesnike vrijedi da su vrijednosti MaxHR-a niže te da medijan bude manji te čak izvan vrijednosti prvog kvartila u skupini srčanih nebolesnika.
 
-```{r}
-boxplot(Oldpeak ~ HeartDisease, data = data)
-```
-Slično prošlom primjeri, ovaj boxplot mogao sugerirati na razliku u vrijednosti Oldpeak parametra ovisno o tome je li pacijent srčani bolesnik ili ne - vidimo da za srčane bolesnike vrijedi da su vrijednosti Oldpeaka-a više te da medijan bude veći te čak izvan vrijednosti trećeg kvartila u skupini srčanih nebolesnika. Slično kao za kolesterol, za srčane bolesnike se vrijednost Oldpeaka manje rasipa (bude konzistentnija), ali ponovno imamo mnogo stršećih (atipičnih vrijednosti), zato je dobro promatrati medijane umjesto srednjih vrijednosti za ovaj primjer.
+
 
 ```{r}
 boxplot(Age ~ HeartDisease, data = data)
 ```
 Ponovno, ovaj boxplot mogao bi sugerirati razliku u dobi pacijenata srčanih bolesnika i nebolesnika - vidimo da za srčane bolesnike vrijedi da su veće dobi te da medijan bude veći te čak izvan vrijednosti trećeg kvartila u skupini srčanih nebolesnika. 
 
-```{r}
-diseased <- data[data$HeartDisease == 1, ]
-healthy <- data[data$HeartDisease == 0, ]
-
-```
-```{r}
-
-hist(diseased$MaxHR)
-```
-```{r}
-hist(healthy$MaxHR)
-```
-
-## Analiza ovisno o razini šećera
-
-```{r}
-library(tidyverse)
-
-data %>% group_by(FastingBS) %>% summarise(
-  NumOfPatients = n(),
-  HeartDiseaseRatio = sum(HeartDisease)/n(),
-  Mean.Age = mean(Age),
-  Med.Age = median(Age),
-  Mean.RestingBP = mean(RestingBP),
-  Med.RestingBP = median(RestingBP),
-  StdDev.RestingBP = sd(RestingBP),
-  Mean.Cholesterol = mean(Cholesterol),
-  StdDev.Cholesterol = sd(Cholesterol),
-  Med.Cholesterol = median(Cholesterol),
-  Mean.MaxHR = mean(MaxHR),
-  StdDev.MaxHR = sd(MaxHR),
-  Med.MaxHR = median(MaxHR),
-  Mean.OldPeak = mean(Oldpeak),
-  StdDev.OldPeak = sd(Oldpeak),
-  Med.OldPeak = median(Oldpeak)
-)
-```
 
 
 
@@ -390,6 +267,83 @@ Iz rezultata vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaklju�
 
 ## 2. pitanje
 # Postoji li značajna razlika u starosti pacijenata s obzirom na različite vrste boli u prsima?
+
+Zadatak je ispitati srednju vrijednost dobi pacijenata ovisno o vrstama boli u prsima. Kako bismo dobili neku početnu intuiciju, radimo boxplot prikaz.
+
+```{r}
+boxplot(Age ~ ChestPainType, data = unNormalizedData)
+```
+Računamo uzoračku sredinu i varijancu pojedinih grupa. Vidimo da se sredine gotovo ne razlikuju, odskače eventualno sredina grupe 2. 
+
+
+```{r}
+library(tidyverse)
+
+unNormalizedData %>% group_by(ChestPainType) %>% summarise(
+  NumOfPatients = n(),
+  Mean.Age = mean(Age),
+  Med.Age = median(Age),
+  Std.Age = sd(Age),
+  Var.Age = var(Age)
+) 
+
+
+```
+
+Test kojim bi ispitali jednakost ovih sredina jest ANOVA (analiza varijanci).
+Pretpostavke tog testa su nezavisnost, normalnost populacija grupa, kao i jednakost njihovih varijanci.
+
+Kako bismo ispitali ovo treće, koristimo Bartlettov test. Nulta hipoteza tog testa jest da su varijance po svim grupama jednake, dok je alternativna hipoteza da za barem jedan par grupa vrijedi da to nije tako.
+
+```{r}
+bartlett.test(Age ~ ChestPainType, unNormalizedData)
+```
+Na razini značajnosti od 5% bismo odbacili nultu hipotezu, odnosno podaci sugeriraju da varijance po grupama nisu iste.
+
+Kako bismo ispitali normalnost podataka iz pojedinih grupa, vizualiziramo ih histogramima, Q-Q plotovima te naposlijetku radimo i Lillieforseovu inačicu Kolmogorov-Smirnovljevog testa. 
+
+```{r}
+useddata <- unNormalizedData
+useddata$Age <- (useddata$Age)^1
+agePainType1 <- useddata[useddata$ChestPainType == 1,]$Age
+agePainType2 <- useddata[useddata$ChestPainType == 2,]$Age
+agePainType3 <- useddata[useddata$ChestPainType == 3,]$Age
+agePainType4 <- useddata[useddata$ChestPainType == 4,]$Age
+
+
+{qqnorm(agePainType1, main = "Q-Q za tip boli 1")
+ qqline(agePainType1, col = "red")}
+{qqnorm(agePainType2, main = "Q-Q za tip boli 2")
+ qqline(agePainType2, col = "red")}
+{qqnorm(agePainType3, main = "Q-Q za tip boli 3")
+ qqline(agePainType3, col = "red")}
+{qqnorm(agePainType4, main = "Q-Q za tip boli 4")
+ qqline(agePainType4, col = "red")}
+
+hist(agePainType1, main = "Histogram of age for pain type 1")
+hist(agePainType2, main = "Histogram of age for pain type 2")
+hist(agePainType3, main = "Histogram of age for pain type 3")
+hist(agePainType4, main = "Histogram of age for pain type 4")
+
+library(nortest)
+lillie.test(agePainType1)
+lillie.test(agePainType2)
+lillie.test(agePainType3)
+lillie.test(agePainType4)
+
+
+```
+
+Vidimo da su p-vrijednosti Lillieforseove inačice sve osim za kategoriju 3 manje od 5%. Također ni grafovi ne sugeriraju normalnu razdiobu podataka.
+
+Puno nas toga odvraća od parametarskog ANOVA testa, pa se odlučujemo za provedbu njegove neparametarske alternative - Kruskal-Wallisova testa.
+Uvjet za primjenjivost Kruskal-Wallisovog testa jest da je veličina svakog uzorka (grupe) barem 5, što je kod nas slučaj.
+Nulta hipoteza je da su sve sredine po grupama jednake, a alternativna da za barem jedan par grupa to ne vrijedi.
+
+```{r}
+kruskal.test(Age ~ ChestPainType, data=unNormalizedData)
+```
+Vidimo da je p-vrijednost jako malena, što znači da odbacujemo nultu hipotezu, odnosno, podaci sugeriraju da postoji značajna razlika u starosti ovisno o tipu boli u prsima.
 
 
 ## 3. pitanje
