@@ -242,15 +242,26 @@ hist(maxHRWithoutAngine, main = "Histogram for MaxHR without angine")
 
 Iz grafova možemo zaključiti da se za osobe s anginom značajka MaxHR ravna po normalnoj razdiobi, dok se za osobe bez angine sredina ravna po normalnoj raspodjeli, no repovi su različiti od normalne raspodjele.
 Dodatno, histogram za osobe bez angine pokazuje da su podatci malo pomaknuti od sredine 0. Možemo provesti Lillieforsov test kako bi provjerili odgovaraju li podatci normalnoj razdiobi. 
-Ipak, T razdioba robusna je na normalnost podataka, pa možemo nastaviti s testiranjem razlike u srednjim vrijednostima.
 Pretpostavku nezavisnosti podataka temeljimo na činjenici da su podatci preuzeti iz različitih skupina odnosno od različitih ljudi.
+
+Lilliefors (Kolmogorov-Smirnov) test normalnosti podataka:
+Provest ćemo Lilliefors test kako bismo provjerili odgovaraju li podatci normalnoj razdiobi. Za provođenje testa mora biti zadovoljen uvjet da su podatci nezavisni.  
+Hipoteza H0: podatci su uzorkovani iz normalne razdiobe
+Hipoteza H1: podatci nisu uzorkovani iz normalne razdiobe
 
 ```{r}
 library(nortest)
 lillie.test(maxHRWithoutAngine)
 lillie.test(maxHRWithAngine)
 ```
+Iz rezultata testa možemo vidjeti da je p vrijednost manja od alfa = 5%. Test nam ukazuje da postoje statistički značajne razlike između podataka i normalne razdiobe. No kako nam prethodni grafovi pokazuju da su podatci približno normalno raspoređeni i kako je T test dosta robustan na normalnost podataka, možemo pretpostaviti da su podatci uzorkovani iz normalne razdiobe. I nastaviti s T testom no ipak treba imati na umu da rezultati mogu biti malo iskrivljeni.
+
 Nastavljamo s F-testom kako bismo utvrdili jesu li varijance obaju skupova podataka jednake ili različite.
+Ako imamo dva nezavisna slučajna uzorka (već ranije smo ovo pretpostavili), koji dolaze iz normalnih (provjerili ranije) distribucija s varijancama $\sigma_1^2$ i $\sigma_2^2$, tada slučajna varijabla
+$$F = \frac{S_{X_1}^2 / \sigma_1^2}{S_{X_2}^2 / \sigma_2^2}$$ 
+ima Fisherovu distribuciju s $(n_1 - 1, n_2 - 1)$ stupnjeva slobode
+Hipoteza H0: varijance su jednake
+Hipoteza H1: varijance su različite
 
 ```{r}
 var(maxHRWithoutAngine)
@@ -258,6 +269,9 @@ var(maxHRWithAngine)
 var.test(maxHRWithAngine, maxHRWithoutAngine)
 ```
 Vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaključujemo da su varijance različite; radi toga koristimo T-test za dva uzorka s različitim varijancama.
+Nakon što smo provjerili sve uvjete za T-test, možemo ga provesti.
+hipoteza H0: nema razlike u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine
+hipoteza H1: postoji razlika u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine
 
 ```{r}
 t.test(maxHRWithAngine, maxHRWithoutAngine, var.equal = FALSE)
@@ -362,8 +376,27 @@ Za logističku regresiju trebamo provjeriti nekoliko pretpostavki:
 2. Podatci moraju biti nezavisni (ulazi su nezavisne varijable dok je izlaz y zavisna varijabla)
 3. Nema nedostajućih vrijednosti i klase imaju balansirani broj primjera (u našem slučaju oba uvjeta su ispunjena, provjera je napravljena u fazi čišćenja podataka)
 
-Prije provedbe logističke regresije poželjno je vizualizirati podatke kako bismo dobili bolji uvid u njih. U našem slučaju možemo koristiti graf raspršenja jer imamo samo dvije varijable.
+Kako bismo mogli rezultate logističke regresije interpretirati kao vjerojatnost moraju biti zadovoljene i navedene pretpostavke:
+(1) primjeri iz obiju klasa normalno distribuirani oko srednje, prototipne vrijednosti (tj. izglednost je Gaussova gustoća vjerojatnosti)
+(2) da postoji linearna zavisnost između izvora šuma koja je u obje klase identična (tj. kovarijacijska matrica je dijeljena), onda
+izlaz logističke regresije doista odgovara aposteriornoj vjerojatnosti oznake y za primjer x.
 
+ako ove pretpostavke ne vrijede, onda nemamo teorijski model uz koje bi izlaz logističke regresije odgovarao aposeriornoj vjerojatnosti. Međutim, u praksi se time previše ne zamaramo, tj. izlaz logističke regresije tumačimo kao vjerojatnost neovisno o tome koliko podatci doista odgovaraju navedenim pretpostavkama. Tako da navedene dvije pretpostavke nećemo detaljno provjeravati one služe kao teorijska podloga. Radi potpunosti ćemo nacrtati qq plot za provjeru normalnosti.
+
+```{r}
+#normalnost 
+qqnorm(oldCategoricalData$Age)
+qqline(oldCategoricalData$Age)
+
+qqnorm(oldCategoricalData$MaxHR)
+qqline(oldCategoricalData$MaxHR)
+
+
+
+```
+Iz qq plota možemo vidjeti kako podatci prate normalnu razdiobu s malim odstupanjima u repovima. 
+
+Prije provedbe logističke regresije poželjno je vizualizirati podatke kako bismo dobili bolji uvid u njih. U našem slučaju možemo koristiti graf raspršenja jer imamo samo dvije varijable.
 ```{r}
 colors <- ifelse(oldCategoricalData$HeartDisease == 1, rgb(1,0,0,0.5), rgb(0,0,1,0.5)) 
 plot(oldCategoricalData$Age, oldCategoricalData$MaxHR, col = colors, 
@@ -397,6 +430,18 @@ Koeficijent uz Age je 0.3566 što sugerira da starije osobe s većom vjerojatno�
 Dobiveni rezultati slažu se s vizualizacijom podataka koju smo napravili ranije.
 
 P-vrijednosti su male: 2 * 10^-16 za MaxHR i 8.55 * 10^-6 za Age, iz čega možemo zaključiti kako oba koeficijenta imaju statistički značajan utjecaj.
+
+Dodati ćemo matricu konfuzije da pomogne u interpretaciji točnosti modela.
+
+```{r}
+# matrica konfuzije
+confusionMatrix <- table(data$HeartDisease, predict(logisticModel, type = "response") > 0.5)
+rownames(confusionMatrix) <- c("FALSE", "TRUE")
+confusionMatrix
+
+
+
+```
 
 
 ### Predikcija
@@ -446,7 +491,9 @@ hist(cholesterolFemale, main = "Histogram for females")
 ```
 Vidimo kako se podatci ne ravnaju savršeno po normalnoj razdiobi na repovima, koristeći logratiamsku funkciju za transformaciju ipak dobivamo bolje poklapanje s normalnom. Sličnost je dovoljno velika da bi mogli nastaviti s provođenjem testa (mala odstupanja od normalne razdiobe neće utjecati na rezultate zato što je T-test robusan na normalnost podataka).
 
-Nakon što smo utvrdili nezavisnost i normalnost podataka, provodimo F-test kako bismo utvrdili jesu li varijance jednake ili različite.
+Nakon što smo utvrdili nezavisnost i normalnost podataka, provodimo F-test kako bismo utvrdili jesu li varijance jednake ili različite. Sav tekst i pretpostavke iz prvog zadatka vezane za F test možemo prenijeti i na ovaj zadatak. Sada ćemo radi jednostavnosti samo napisati hipoteze (nezavisnost i normalnost smo provjerili i pretpostavili)
+Hipoteza H0: varijance su jednake
+Hipoteza H1: varijance su različite
 
 ```{r}
 var(cholesterolMale)
@@ -455,6 +502,9 @@ var(cholesterolFemale)
 var.test(cholesterolMale, cholesterolFemale)
 ```
 Opet vidimo kako je p-vrijednost manja od alfa = 5% pa zaključujemo da su varijance različite. Sada znamo da trebamo koristiti T-test za dva uzorka s različitim varijancama.
+Hipoteze za T-test:
+H0: nema razlike u maksimalnom broju otkucaja srca između muškaraca i žena
+H1: postoji razlika u maksimalnom broju otkucaja srca između muškaraca i žena
 
 ```{r}
 t.test(cholesterolMale, cholesterolFemale, var.equal = FALSE)
