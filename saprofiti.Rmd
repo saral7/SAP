@@ -8,31 +8,25 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(fig.width=8, fig.height=5)
+knitr::opts_chunk$set(fig.width=8, fig.height=4.5)
 options(max.print = 1000)
 ```
 
 ```{r}
-library(dplyr)
-library(ggplot2)
-library(magrittr)
-library(tidyr)
-library(readr)
-library(tidyverse)
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(magrittr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(readr))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(nortest))
 ```
 
- 
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
 # Učitavanje podataka
 
 ```{r}
-data <- read_csv("heart.csv")
+data <- read_csv("heart.csv", show_col_types = FALSE)
 ```
 
 
@@ -44,37 +38,41 @@ data <- read_csv("heart.csv")
 ```{r}
 print(head(data), width = Inf)
 ```
-## Opis značajki
-
-AGE -> Age of the patient [years] 
-Sex -> Sex of the patient [M: Male, F: Female]
-ChestPainType -> chest pain type [TA: Typical Angina, ATA: Atypical Angina, NAP: Non-Anginal Pain, ASY: Asymptomatic]
-RestingBP -> Resting blood pressure [mm Hg]
-Cholesterol -> Serum cholesterol [mm/dl]
-FastingBS -> Fasting blood sugar [1: if Fasting blood sugar > 120 mg/dl, 0: otherwise]
-RestingECG -> Resting electrocardiogram results [Normal: Normal, ST: having ST-T wave abnormality (T wave inversions and/or ST elevation or depression of > 0.05 mV), LVH: showing probable or definite left ventricular hypertrophy by Estes’ criteria]
-MaxHR -> Maximum heart rate achieved [Numeric value between 60 and 202]
-ExerciseAngina -> Exercise-induced angina [Y: Yes, N: No]
-Oldpeak -> Exercise-induced ST depression [ST depression induced by exercise relative to rest]
-ST_Slope -> Slope of the peak exercise ST segment [Up: upsloping, Flat: flat, Down: downsloping]
-HeartDisease -> Output class [1: heart disease, 0: Normal]
-
 
 ## Opis podataka
 ```{r}
 dim(data)  # broj redaka, broj stupaca (broj primjera, broj varijabli) 
-cat("Number of rows: ", nrow(data), "\n")
-cat("Number of columns: ", ncol(data), "\n")
-cat("Column names:", str_wrap(paste(colnames(data), collapse = ", "), width = 70) , "\n")
+cat("Broj podataka: ", nrow(data), "\n")
+cat("Broj parametara: ", ncol(data), "\n")
+cat("Imena parametara:", str_wrap(paste(colnames(data), collapse = ", "), width = 70) , "\n")
 ```
+Skup se sastoji od podataka od 918 osoba. Svaki podatak sadrži informacije o 12 razmatranih parametara (varijabli).
+
+## Opis značajki
+
+Age -> dob [godine]
+Sex -> spol [M: muški, F: ženski]
+ChestPainType -> vrsta boli u prsima [TA: tipična angina, ATA: atipična angina, NAP: neanginalna bol, ASY: asimptomatska]
+RestingBP -> krvni tlak u mirovanju [mm Hg]
+Cholesterol -> razina kolesterola [mm/dl]
+FastingBS -> krvni šećer [1: ako > 120 mg/dl, 0: inače]
+RestingECG -> rezultati elektrokradiograma u mirovanju [Normal: normalno, ST:  ST-T abnormalnost, LVH: vjerojatna ventrikulara hipertrofija po Estesovom kriteriju]
+MaxHR -> maksimalni broj otkucaja srca [vrijednost između 60 i 202]
+ExerciseAngina -> angina tijekom vježbanja [Y: ima, N: nema]
+Oldpeak -> ST pad tijekom vježbanja
+ST_Slope -> nagib vrhunca ST segmenta tijekom vježbanja [Up: rastući, Flat: ravni, Down: padajući]
+HeartDisease -> izlazna klasa [1: srčani bolesnik, 0: normalno]
+
+Numeričke varijable su Age, RestingBP, Cholesterol, MaxHR i Oldpeak. Kategoričke varijable su ChestPainType, RestingBP, FastingBS, RestingECG, ExerciseAngine, ST_Slope te HeartDisease.
+
 ## Čišćenje podataka
 
 
 ### Monotone i konstantne vrijednosti
 ```{r}
-cat("Number of rows is ", nrow(data), "\n")
+cat("Broj podataka ", nrow(data), "\n")
 for (column in colnames(data)){
-  cat("Column: ", column, "has ", length(unique(data[[column]])), " unique values\n")
+  cat("Column: ", column, "ima ", length(unique(data[[column]])), " jedinstvenih vrijednosti\n")
 }
 ```
 Pošto je broj jedinstvenih vrijednosti za svaku značajku manji od broja redaka, možemo zaključiti da nema monotone vrijednosti (napomena: provjerili smo i ručno kako se ne bi dogodilo da zbog nedostajućih vrijednosti izgleda kao da nema monotonih vrijednosti).
@@ -92,12 +90,12 @@ data$Cholesterol[data$Cholesterol == 0] <- median(data$Cholesterol[data$Choleste
 ```
 
 ### Transformiranje kategoričkih značajki u numeričke
-Mogli smo koristiti i one-hot encoding za neke značajke, no smatramo da ipak između svih značajki postoji neko uređenje te smo se zato odlučili za label encoding (npr. za značajku ChestPainType može biti TA -> ATA -> NAP -> ASY gdje određeni simptomi postaju manje karakteristični za anginu; ST_Slope također ima uređenje up -> flat -> down)
+Mogli smo koristiti i one-hot encoding za neke značajke, no smatramo da ipak između svih značajki postoji neko uređenje te smo se zato odlučili za label encoding (npr. za značajku ChestPainType može biti TA -> ATA -> NAP -> ASY gdje određeni simptomi postaju manje karakteristični za anginu; ST_Slope također ima uređenje up -> flat -> down).
+U analizi nismo koristili relativan odnos kategoričkih podataka, tako da odabir enkodiranja nije bio toliko važan.
 
 
 
 ```{r}
-cat(unique(data$Sex), "\n")
 oldCategoricalData <- data
 data$Sex <- as.numeric(factor(data$Sex, levels = c("F", "M"), labels = c(0, 1))) - 1
 data$ExerciseAngina <- as.numeric(factor(data$ExerciseAngina, 
@@ -113,13 +111,15 @@ data$ST_Slope <- as.numeric(factor(data$ST_Slope,
 
 
 
-## Nastavak deskriptivne statistike
+## Deskriptivna analiza numeričkih podataka
 Sada kad smo očistili podatke, možemo nastaviti s deskriptivnom statistikom.
-Prvo ćemo izvući osnovne mjere centralne tendencije i rasipanja za podatke kao što su minimum, maksimum, kvantili i srednja vrijednost za numeričke podatke i učestalost pojavljivanja po kategorijama za kategoričke. 
+Prvo ćemo izvući osnovne mjere centralne tendencije, kao što su minimum, maksimum, kvantili i srednja vrijednost, te mjere rasipanja za numeričke podatke te učestalost pojavljivanja po kategorijama za kategoričke. 
 
 ```{r}
 data[-c(2,3,6,7,9,11,12)] %>% summary()
 ```
+Iz mjera centralnih tendencija vidimo da su godine i maksimalni broj otkucaja srca malo zakrivljene ulijevo dok su ostale kategorije malo zakrivljene u desno. Također bez računanja možemo primijetiti da zbog jako malog interkvartalnog područja krvni tlak u mirovanju i kolesterol sigurno imaju stršeće vrijednosti.
+
 Izradit ćemo kovarijacijsku matricu za numeričke varijable - vrijednosti prikazuju kovarijance varijable u retku i stupcu, a na dijagonali se nalaze varijance pojedinih varijabli.
 
 ```{r}
@@ -133,14 +133,14 @@ Izradit ćemo korelacijsku matricu za numeričke varijable - vrijednosti prikazu
 corrMat <- cor(data[-c(2,3,6,7,9,11,12)])
 corrMat
 ```
-Koeficijent korelacije je realan broj između -1 i 1, gdje veća apsolutna vrijednost prikazuje veću linearnu zavisnost. Iz tablice vidimo da varijable nisu toliko korelirane.
+Pearsonov koeficijent korelacije je realan broj između -1 i 1, gdje veća apsolutna vrijednost prikazuje veću linearnu zavisnost. Iz tablice se čini da varijable nisu toliko korelirane.
 
 ## Učestalost pojavljivanja vrijednosti za kategoričke značajke
 ```{r}
 for (column in c(2, 3, 6, 7, 9, 11, 12)) {
   column_name <- colnames(oldCategoricalData)[column]
   column_values <- oldCategoricalData[[column]]
-  cat("Column:", column_name, "has values:\n")
+  cat("Column:", column_name, "ima vrijednosti:\n")
   print(table(column_values))
   cat("\n")
 }
@@ -164,15 +164,10 @@ print(data %>% group_by(Sex) %>% summarise(
 Na prvu uočavamo razlike između srednjih vrijednosti najvećeg broja otkucaja srca (MaxHR) i količine kolesterola (Cholesterol), te, možda najvažnije, razliku u udjelu srčanih bolesnika među muškarcima i ženama.
 To bi moglo motivirati pitanja o utjecaju spola na vrijednosti tih parametara.
 
-```{r}
-boxplot(Cholesterol ~ Sex, data = data)
-```
 
 ### Analiza ovisno o prisutnosti srčane bolesti
 
 ```{r}
-library(tidyverse)
-
 print(data %>% group_by(HeartDisease) %>% summarise(
   NumOfPatients = n(),
   FastingBSRatio = sum(FastingBS)/n(),
@@ -201,20 +196,21 @@ boxplot(Age ~ HeartDisease, data = data)
 ```
 Ponovno, ovaj boxplot mogao bi sugerirati razliku u dobi pacijenata srčanih bolesnika i nebolesnika - vidimo da za srčane bolesnike vrijedi da su veće dobi te da medijan bude veći te čak izvan vrijednosti trećeg kvartila u skupini srčanih nebolesnika. 
 
-
-
-
-## Normalizacija numeričkih značajki
 ```{r}
 unNormalizedData <- data
 ```
 
 
+
 # ISTRAŽIVAČKA PITANJA
 VAŽNA NAPOMENA: Alfa vrijednost određuje se prije provođenja statističkog testa; mi ćemo u svim testovima uzeti da je alfa = 0.05 odnosno 5%.
 
-## 1. pitanje
-## Postoji li razlika u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine?
+## 1. pitanje: Postoji li razlika u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine?
+```{r}
+boxplot(MaxHR ~ ExerciseAngina, data=unNormalizedData)
+```
+Ovaj boxplot sugerira da bi mogla postojati razlika u najvećem broju otkucaja, obzirom da se medijan kategorije s anginom nalazi ispod vrijednosti prvog kvartila onih bez angine.
+
 Kako bismo odgovorili na ovo pitanje trebamo koristiti T-test za dva uzorka.
 Znamo da T-test ima neke osnovne pretpostavke koje moramo provjeriti, a moramo provjeriti i jesu li varijance podataka jednake ili različite.
 Prvo ćemo pogledati jesu li podatci uzorkovani iz normalne razdiobe, a nakon toga provesti F-test kako bismo utvrdili jesu li varijance jednake ili različite.
@@ -222,6 +218,10 @@ Prvo ćemo pogledati jesu li podatci uzorkovani iz normalne razdiobe, a nakon to
 ```{r}
 withAngine <- data[data$ExerciseAngina == 1,]
 withoutAngine <- data[data$ExerciseAngina == 0,]
+
+cat("Broj pacijenata s anginom:", nrow(withAngine),
+    "\nBroj pacijenata bez angine:", nrow(withoutAngine))
+
 maxHRWithAngine <- withAngine$MaxHR
 maxHRWithoutAngine <- withoutAngine$MaxHR
 
@@ -254,7 +254,7 @@ library(nortest)
 lillie.test(maxHRWithoutAngine)
 lillie.test(maxHRWithAngine)
 ```
-Iz rezultata testa možemo vidjeti da je p vrijednost manja od alfa = 5%. Test nam ukazuje da postoje statistički značajne razlike između podataka i normalne razdiobe. No kako nam prethodni grafovi pokazuju da su podatci približno normalno raspoređeni i kako je T test dosta robustan na normalnost podataka, možemo pretpostaviti da su podatci uzorkovani iz normalne razdiobe. I nastaviti s T testom no ipak treba imati na umu da rezultati mogu biti malo iskrivljeni.
+Iz rezultata testa možemo vidjeti da je p vrijednost manja od alfa = 5%. Test nam ukazuje da postoje statistički značajne razlike između podataka i normalne razdiobe. No kako nam prethodni grafovi pokazuju da su podatci približno normalno raspoređeni i kako je T test dosta robustan na normalnost podataka, možemo pretpostaviti da su podatci uzorkovani iz normalne razdiobe i nastaviti s T-testom.
 
 Nastavljamo s F-testom kako bismo utvrdili jesu li varijance obaju skupova podataka jednake ili različite.
 Ako imamo dva nezavisna slučajna uzorka (već ranije smo ovo pretpostavili), koji dolaze iz normalnih (provjerili ranije) distribucija s varijancama $\sigma_1^2$ i $\sigma_2^2$, tada slučajna varijabla
@@ -270,19 +270,19 @@ var.test(maxHRWithAngine, maxHRWithoutAngine)
 ```
 Vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaključujemo da su varijance različite; radi toga koristimo T-test za dva uzorka s različitim varijancama.
 Nakon što smo provjerili sve uvjete za T-test, možemo ga provesti.
-hipoteza H0: nema razlike u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine
-hipoteza H1: postoji razlika u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine
+
+Hipoteza H0: nema razlike u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine
+Hipoteza H1: postoji razlika u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine
 
 ```{r}
 t.test(maxHRWithAngine, maxHRWithoutAngine, var.equal = FALSE)
 ```
-Iz rezultata vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaključujemo da postoji razlika u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine
+Iz rezultata vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaključujemo da postoji razlika u maksimalnom broju otkucaja srca između pacijenata s anginom i onih bez angine.
 
 
-## 2. pitanje
-## Postoji li značajna razlika u starosti pacijenata s obzirom na različite vrste boli u prsima?
+## 2. pitanje: Postoji li značajna razlika u starosti pacijenata s obzirom na različite vrste boli u prsima?
 
-Zadatak je ispitati srednju vrijednost dobi pacijenata ovisno o vrstama boli u prsima. Kako bismo dobili neku početnu intuiciju, radimo boxplot prikaz.
+Kako bismo dobili neku početnu intuiciju, radimo boxplot prikaz.
 
 ```{r}
 boxplot(Age ~ ChestPainType, data = unNormalizedData)
@@ -302,16 +302,15 @@ print(unNormalizedData %>% group_by(ChestPainType) %>% summarise(
 
 
 ```
+U prvoj je kategoriji 46 pacijenata, u drugoj 173, u trećoj 203 te u zadnjoj 496 pacijenata. Uočavamo i razliku između varijanci po kategorijama.
 
 Test kojim bi ispitali jednakost ovih sredina jest ANOVA (analiza varijanci).
 Pretpostavke tog testa su nezavisnost, normalnost populacija grupa, kao i jednakost njihovih varijanci. Nezavisnost pretpostavljamo iz činjenice da je svaki podatak od druge osobe.
 
 
-Prilikom analize podatak, primjetili smo da 
 Kako bismo provjerili normalnost podataka iz pojedinih grupa, vizualiziramo ih histogramima i Q-Q plotovima.
 ```{r}
 useddata <- unNormalizedData
-useddata$Age <- (useddata$Age)^1
 agePainType1 <- useddata[useddata$ChestPainType == 1,]$Age
 agePainType2 <- useddata[useddata$ChestPainType == 2,]$Age
 agePainType3 <- useddata[useddata$ChestPainType == 3,]$Age
@@ -365,11 +364,10 @@ kruskal.test(Age ~ ChestPainType, data=unNormalizedData)
 Vidimo da je p-vrijednost jako malena, što znači da odbacujemo nultu hipotezu, odnosno, podaci sugeriraju da postoji značajna razlika u starosti ovisno o tipu boli u prsima.
 
 
-## 3. pitanje
-## Možemo li predvidjeti prisutnost srčane bolesti na temelju maksimalnog broja otkucaja srca i starosti?
+## 3. pitanje: Možemo li predvidjeti prisutnost srčane bolesti na temelju maksimalnog broja otkucaja srca i starosti?
 
 Za pronalazak odgovora na treće pitanje koristimo logističku regresiju. Linearna regresija nije dobar izbor jer je problem klasifikacijski.
-Linearna regresija loše klasificira jer funkcija pogreške kažnjava i točno klasificirane primjere koji su daleko od granice odluke te zbog toga stršeće vrijednosti mogu značajno utjecati na pomak granice odluke (čak i kada su točno klasificirane).
+Linearna regresija loše klasificira jer funkcija pogreške kažnjava i točno klasificirane primjere koji su daleko od granice odluke te zbog toga stršeće vrijednosti mogu značajno utjecati na pomak granice odluke (čak i kada su točno klasificirane). Također, linearna regresija nam vraća vrijednosti izvan intervala [0, 1].
 
 Za logističku regresiju trebamo provjeriti nekoliko pretpostavki:
 1. Ne smije biti multikolinearnosti u podatcima
@@ -381,7 +379,7 @@ Kako bismo mogli rezultate logističke regresije interpretirati kao vjerojatnost
 (2) da postoji linearna zavisnost između izvora šuma koja je u obje klase identična (tj. kovarijacijska matrica je dijeljena), onda
 izlaz logističke regresije doista odgovara aposteriornoj vjerojatnosti oznake y za primjer x.
 
-ako ove pretpostavke ne vrijede, onda nemamo teorijski model uz koje bi izlaz logističke regresije odgovarao aposeriornoj vjerojatnosti. Međutim, u praksi se time previše ne zamaramo, tj. izlaz logističke regresije tumačimo kao vjerojatnost neovisno o tome koliko podatci doista odgovaraju navedenim pretpostavkama. Tako da navedene dvije pretpostavke nećemo detaljno provjeravati one služe kao teorijska podloga. Radi potpunosti ćemo nacrtati qq plot za provjeru normalnosti.
+Ako ove pretpostavke ne vrijede, onda nemamo teorijski model uz koje bi izlaz logističke regresije odgovarao aposeriornoj vjerojatnosti. Međutim, u praksi se time previše ne zamaramo, tj. izlaz logističke regresije tumačimo kao vjerojatnost neovisno o tome koliko podatci doista odgovaraju navedenim pretpostavkama. Tako da navedene dvije pretpostavke nećemo detaljno provjeravati one služe kao teorijska podloga. Radi potpunosti ćemo nacrtati qq plot za provjeru normalnosti.
 
 ```{r}
 #normalnost 
@@ -431,6 +429,8 @@ Dobiveni rezultati slažu se s vizualizacijom podataka koju smo napravili ranije
 
 P-vrijednosti su male: 2 * 10^-16 za MaxHR i 8.55 * 10^-6 za Age, iz čega možemo zaključiti kako oba koeficijenta imaju statistički značajan utjecaj.
 
+
+
 Dodati ćemo matricu konfuzije da pomogne u interpretaciji točnosti modela.
 
 ```{r}
@@ -439,10 +439,27 @@ confusionMatrix <- table(data$HeartDisease, predict(logisticModel, type = "respo
 rownames(confusionMatrix) <- c("FALSE", "TRUE")
 confusionMatrix
 
-
-
 ```
+Iz nje računamo:
+```{r}
+accuracy = sum(diag(confusionMatrix)) / sum(confusionMatrix)
+precision = confusionMatrix[2,2] / sum(confusionMatrix[,2])
+recall = confusionMatrix[2,2] / sum(confusionMatrix[2,])
+specificity = confusionMatrix[1,1] / sum(confusionMatrix[,1])
 
+cat("Točnost: ", accuracy, "\n")
+cat("Preciznost: ", precision, "\n")
+cat("Odziv: ", recall, "\n")
+cat("Specifičnost: ", specificity, "\n")
+```
+Međutim, te mjere ovise o realnom broju iz intervala <0, 1> koji smo postavili za graničnu vrijednosti izlaza iz logističke regresije za dvije kategorije (u našem slučaju je to 0.5).
+Možemo promatrati i vrijednost pseudo-Rsquared, koja nam daje informaciju koliko je naš procijenjeni model blizu null modelu (tj. modelu koji koristi samo slobodni član) i ne ovisi o odabranome pragu.
+
+```{r}
+Rsq = 1 - logisticModel$deviance/logisticModel$null.deviance
+Rsq
+```
+Vidimo da je model s ovim regresorima malo prikladniji našim podacima od null modela.
 
 ### Predikcija
 
@@ -462,8 +479,19 @@ Za naš slučaj AUC je 0.7467, iz čega zaključujemo kako naš model ima dobru 
 
 
 
-## 4. pitanje
-## Postoji li razlika u razini kolesterola između muškaraca i žena?
+## 4. pitanje: Postoji li razlika u razini kolesterola između muškaraca i žena?
+```{r}
+male <- data[data$Sex == 1,]
+female <- data[data$Sex == 0,]
+
+cat("Broj žena: ", nrow(female),
+    "\nBroj muškaraca: ", nrow(male))
+```
+
+```{r}
+boxplot(Cholesterol ~ Sex, data = data)
+```
+Ovaj box plot prikazuje da nema velike razlike u medijanima razine kolesterola po spolu, međutim, primjećujemo veliki broj stršećih vrijednosti među muškarcima. 
 
 Kao i u prvom istraživačkom pitanju koristimo T-test za dva uzorka.
 Opet ćemo prvo provjeriti normalnost podataka i nakon toga varijanci pomoću F-testa.
@@ -471,9 +499,6 @@ Opet pretpostavljamo nezavisnost podataka jer su podatci uzeti iz različitih sk
 
 ```{r}
 # crtamo Q-Q plot da vidimo odgovaraju li podatci normalnoj raspodjeli
-male <- data[data$Sex == 1,]
-female <- data[data$Sex == 0,]
-
 cholesterolMale <- log(male$Cholesterol)
 cholesterolFemale <- log(female$Cholesterol)
 
@@ -489,10 +514,11 @@ hist(cholesterolMale, main = "Histogram for males")
 
 hist(cholesterolFemale, main = "Histogram for females")
 ```
-Vidimo kako se podatci ne ravnaju savršeno po normalnoj razdiobi na repovima, koristeći logratiamsku funkciju za transformaciju ipak dobivamo bolje poklapanje s normalnom. Sličnost je dovoljno velika da bi mogli nastaviti s provođenjem testa (mala odstupanja od normalne razdiobe neće utjecati na rezultate zato što je T-test robusan na normalnost podataka).
+Koristeći logaritamsku funkciju za transformaciju dobivamo bolje poklapanje s normalnom. Vidimo kako se podatci (Q-Q plot za muškarce) ne ravnaju savršeno po normalnoj razdiobi na repovima, ali iz histograma je sličnost dovoljno velika da bi mogli nastaviti s provođenjem testa (mala odstupanja od normalne razdiobe neće utjecati na rezultate zato što je T-test robusan na normalnost podataka) i dovoljno dobro funkcionira za "zvonolike" distribucije.
 
-Nakon što smo utvrdili nezavisnost i normalnost podataka, provodimo F-test kako bismo utvrdili jesu li varijance jednake ili različite. Sav tekst i pretpostavke iz prvog zadatka vezane za F test možemo prenijeti i na ovaj zadatak. Sada ćemo radi jednostavnosti samo napisati hipoteze (nezavisnost i normalnost smo provjerili i pretpostavili)
-Hipoteza H0: varijance su jednake
+Nakon što smo utvrdili nezavisnost i normalnost podataka, provodimo F-test kako bismo utvrdili jesu li varijance jednake ili različite. Sav tekst i pretpostavke iz prvog zadatka vezane za F-test možemo prenijeti i na ovaj zadatak. Sada ćemo radi jednostavnosti samo napisati hipoteze (nezavisnost i normalnost smo provjerili i pretpostavili)
+
+Hipoteza H0: varijance su jednake (omjer varijanci je 1)
 Hipoteza H1: varijance su različite
 
 ```{r}
@@ -501,24 +527,32 @@ var(cholesterolFemale)
 
 var.test(cholesterolMale, cholesterolFemale)
 ```
-Opet vidimo kako je p-vrijednost manja od alfa = 5% pa zaključujemo da su varijance različite. Sada znamo da trebamo koristiti T-test za dva uzorka s različitim varijancama.
+Opet vidimo kako je p-vrijednost veća od alfa = 5% pa ne možemo odbaciti hipotezu da su varijance jednake. Zato koristimo T-test s jednakim i nepoznatim varijancama. 
+
 Hipoteze za T-test:
 H0: nema razlike u maksimalnom broju otkucaja srca između muškaraca i žena
 H1: postoji razlika u maksimalnom broju otkucaja srca između muškaraca i žena
 
 ```{r}
-t.test(cholesterolMale, cholesterolFemale, var.equal = FALSE)
+t.test(cholesterolMale, cholesterolFemale, var.equal = TRUE)
 ```
-Iz rezultata vidimo kako je p-vrijednost značajno manja od alfa = 5% pa zaključujemo da postoji razlika u razinama kolesterola između muškaraca i žena.
+Iz rezultata vidimo kako je p-vrijednost manja od alfa = 5% pa zaključujemo da postoji razlika u razinama kolesterola između muškaraca i žena.
+Korištenje parametarskog T-testa na distribucije koje odstupaju od normalne povećavaju vjerojatnost pogreške prvog reda. Također, iz boxplota smo uočili mnogo outliera. Iz tih razloga se odlučujemo provesti i neparametarsku inačicu T-testa, Wilcoxonov test predznačnih rangova koji testira jednakost medijana, što je centralna mjera koja bolja podnosi stršeće vrijednosti od aritmetičke sredine. Pretpostavke su da je distribucija simetrična i kontinuirana. Iz grafova možemo vidjeti da distribucije zadovoljavaju pretpostavke Wilcoxonovog testa.
 
+Hipoteza H0: medijani razina kolesterola među spolovima su isti
+Hipoteza H1: medijani razina kolesetrola među spolovima nisu isti
 
-## 5. pitanje
-## Postoji li korelacija ili homogenost između spola i pojave srčanih bolesti?
+```{r}
+wilcox.test(cholesterolMale, cholesterolFemale, paired = FALSE, alternatvie = "two.sided")
+```
+Vidimo da je p-vrijednost manja od alfa = 5% te zaključujemo da podaci sugeriraju da postoji razlika između vrijednosti medijana razine kolesterola po spolovima. 
+
+## 5. pitanje: Postoji li razlika u udjelima pojavnosti srčanih bolesti među spolovima?
 
 Kako bismo provjerili postoji li razlika u udjelu srčanih bolesnika među muškarcima i ženama, radimo test homogenosti.
 
-H0: spoj i pojava srčanih bolesti su nezavisni
-H1: postoji zavisnost spoja i pojave srčanih bolesti
+H0: spol i pojava srčanih bolesti su nezavisni
+H1: postoji zavisnost spola i pojave srčanih bolesti
 
 ```{r}
 data_copy = data.frame(data);
@@ -526,15 +560,15 @@ tracemem(data)==tracemem(data_copy);
 untracemem(data_copy);
 
 ```
-Računamo opažene i očekivane frekvencije te na njima provodimo Chi-kvadrat test.
+Računamo opažene i očekivane frekvencije te na njima provodimo Chi-kvadrat test.To je neparametarski test, čija je pretpostavka da su očekivane frekvencije svakog para razreda barem 5.
+
+
 ```{r}
 tbl_heart_disease = table(data_copy$Sex, 
             data_copy$HeartDisease)
-tbl_heart_disease
-```
-
-```{r}
 added_margins_tbl_heart_disease = addmargins(tbl_heart_disease)
+
+cat("Opažene frekvencije:")
 print(added_margins_tbl_heart_disease)
 ```
 
@@ -550,9 +584,14 @@ for (col_names in colnames(added_margins_tbl_heart_disease)){
   }
 }
 ```
+Pretpostavke su zadovoljene pa nastavljamo s testom.
+
+Hipoteza H0: očekivane vrijednosti su jednake opaženima (o_ij = e_ij za i, j iz {0, 1}^2)
+Hipoteza H1: za neki par očekivanih i opaženih vrijednosti vrijedi da nisu jednaki 
 
 ```{r}
 chisq.test(tbl_heart_disease, correct=F)
 ```
 
-Vidimo da je p-vrijednost manja od alfa = 5% što znači da odbacujemo hipotezu H0 u korist H1 koja tvrdi da postoji zavisnost između pojave srčanih bolesti i spola.
+Vidimo da je p-vrijednost manja od alfa = 5% što znači da odbacujemo hipotezu H0 u korist H1 koja tvrdi da za neki par očekivanih i opaženih vrijednosti vrijedi da nisu jednake, 
+odnosno da postoji zavisnost između pojave srčanih bolesti i spola.
